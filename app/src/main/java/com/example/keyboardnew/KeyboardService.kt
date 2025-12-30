@@ -11,7 +11,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.ui.KeyboardLayout
+import com.example.keyboardnew.ui.theme.KeyboardNewTheme
 
 class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
 
@@ -37,7 +39,16 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
     override fun onCreateInputView(): View {
         val composeView = ComposeView(this).apply {
             setContent {
-                KeyboardLayout()
+                KeyboardNewTheme{
+                    KeyboardLayout(
+                        onKeyPress = { key ->
+                            when(key) {
+                                is Key.Character -> handleLetterKeyPress(key.value)
+                                else -> { }
+                            }
+                        }
+                    )
+                }
             }
         }
 
@@ -48,5 +59,10 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
 
         return composeView
 
+    }
+
+    private fun handleLetterKeyPress(letter: String) {
+        val inputConnection = currentInputConnection ?: return
+        inputConnection.commitText(letter, 1)
     }
 }
