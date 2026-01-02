@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,26 +21,51 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.keyboardnew.model.English
+import com.example.keyboardnew.model.BottomRowKeys
 import com.example.keyboardnew.model.Key
+import com.example.keyboardnew.model.KeyboardLanguageConfig
+import com.example.keyboardnew.model.KeyboardLanguageManager
 
 @Composable
 fun KeyboardLayout(
-    onKeyPress: (Key) -> Unit
+    languageManager: KeyboardLanguageManager,
+    emojiSuggestions: List<String>,
+    isShiftEnabled: Boolean,
+    onKeyPress: (Key) -> Unit,
+    onEmojiClick: (String) -> Unit
 ) {
+    val currentLanguage = languageManager.currentLanguage
     Column(
         modifier = Modifier.fillMaxWidth()
             .background(Color.White)
     ) {
-        Text(text = "Hello from Keyboard")
+        if (emojiSuggestions.isNotEmpty()) {
+            EmojiBar(
+                emojis = emojiSuggestions,
+                onEmojiClick = onEmojiClick
+            )
+        }
+        AlphabetRows(
+            language = currentLanguage,
+            isShiftEnabled = isShiftEnabled,
+            onKeyPress = onKeyPress
+        )
+        BottomRow(
+            languageManager = languageManager,
+            onKeyPress = onKeyPress
+        )
     }
 }
 
 @Composable
 fun AlphabetRows(
+    language: KeyboardLanguageConfig,
+    isShiftEnabled: Boolean,
     onKeyPress: (Key) -> Unit
 ) {
-    English.rows.forEach { row ->
+    val rowsToUse = if (isShiftEnabled) language.shiftedRows else language.rows
+
+    rowsToUse.forEach { row ->
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -50,6 +77,33 @@ fun AlphabetRows(
                     onKeyPress = onKeyPress
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun BottomRow(
+    languageManager: KeyboardLanguageManager,
+    onKeyPress: (Key) -> Unit
+) {
+    Row (
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        BottomRowKeys.forEach { key ->
+            KeyButton(
+                modifier = Modifier.weight(
+                    if (key is Key.Space) 4f else 1f
+                ),
+                key = key,
+                onKeyPress = {
+                    if (it is Key.LanguageToggle) {
+                        languageManager.switchToNextLanguage()
+                    } else {
+                        onKeyPress(it)
+                    }
+                }
+            )
         }
     }
 }
@@ -74,11 +128,42 @@ fun KeyButton(
         Text(
             text = when(key) {
                 is Key.Character -> key.value
+                is Key.Shift -> "⇧"
+                is Key.Delete -> "⌫"
+                is Key.NumberToggle -> "?123"
+                is Key.Enter -> "⏎"
+                is Key.LanguageToggle -> "\uD83C\uDF10"
                 else -> ""
             },
             color = Color.DarkGray,
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+fun EmojiBar(
+    modifier: Modifier = Modifier,
+    emojis: List<String>,
+    onEmojiClick: (String) -> Unit
+) {
+    Row (
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        emojis.forEach { emoji ->
+            IconButton(
+                modifier = modifier
+                    .size(48.dp)
+                    .padding(8.dp),
+                onClick = { onEmojiClick(emoji) }
+            ) {
+                Text(
+                    text = emoji,
+                    fontSize = 28.sp
+                )
+            }
+        }
     }
 }
