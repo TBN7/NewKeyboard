@@ -1,30 +1,39 @@
 package com.example.keyboardnew.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.emoji2.emojipicker.EmojiPickerView
 import com.example.keyboardnew.model.BottomRowKeys
+import com.example.keyboardnew.model.EmojiBottomRowKeys
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageConfig
 import com.example.keyboardnew.model.KeyboardLanguageManager
+import com.example.keyboardnew.model.symbolKeys
+
+sealed class KeyboardLayoutType {
+    data object Alphabet : KeyboardLayoutType()
+    data object Symbol : KeyboardLayoutType()
+    data object Emoji : KeyboardLayoutType()
+}
 
 @Composable
 fun KeyboardLayout(
@@ -35,9 +44,13 @@ fun KeyboardLayout(
     onEmojiClick: (String) -> Unit
 ) {
     val currentLanguage = languageManager.currentLanguage
+    var currentLayoutType by remember {
+        mutableStateOf<KeyboardLayoutType>(KeyboardLayoutType.Alphabet)
+    }
     Column(
         modifier = Modifier.fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(8.dp)
     ) {
         if (emojiSuggestions.isNotEmpty()) {
             EmojiBar(
@@ -45,15 +58,61 @@ fun KeyboardLayout(
                 onEmojiClick = onEmojiClick
             )
         }
-        AlphabetRows(
-            language = currentLanguage,
-            isShiftEnabled = isShiftEnabled,
-            onKeyPress = onKeyPress
-        )
-        BottomRow(
-            languageManager = languageManager,
-            onKeyPress = onKeyPress
-        )
+        when(currentLayoutType) {
+            is KeyboardLayoutType.Alphabet ->
+                AlphabetRows(
+                    language = currentLanguage,
+                    isShiftEnabled = isShiftEnabled,
+                    onKeyPress = onKeyPress
+                )
+            is KeyboardLayoutType.Emoji ->
+                EmojiRows(
+                    onKeyPress = onKeyPress
+                )
+            is KeyboardLayoutType.Symbol ->
+                SymbolRows(
+                    onKeyPress = onKeyPress
+                )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        when (currentLayoutType) {
+            is KeyboardLayoutType.Symbol, KeyboardLayoutType.Alphabet ->
+                BottomRow(
+                    languageManager = languageManager,
+                    currentKeyboardLayoutType = currentLayoutType,
+                    onKeyPress = { key ->
+                        when (key) {
+                            is Key.NumberToggle -> currentLayoutType = if (currentLayoutType is KeyboardLayoutType.Alphabet)
+                                KeyboardLayoutType.Symbol
+                            else
+                                KeyboardLayoutType.Alphabet
+
+                            is Key.EmojiToggle -> currentLayoutType = if (currentLayoutType is KeyboardLayoutType.Alphabet)
+                                KeyboardLayoutType.Emoji
+                            else
+                                KeyboardLayoutType.Alphabet
+
+                            else -> onKeyPress(key)
+                        }
+                    }
+                )
+            else ->
+                EmojiBottomRow(
+                    currentKeyboardLayoutType = currentLayoutType,
+                    onKeyPress = { key ->
+                        when (key) {
+                            is Key.NumberToggle -> currentLayoutType = if (currentLayoutType is KeyboardLayoutType.Alphabet)
+                                KeyboardLayoutType.Symbol
+                            else
+                                KeyboardLayoutType.Alphabet
+
+                            else -> onKeyPress(key)
+                        }
+                    }
+                )
+        }
     }
 }
 
@@ -66,6 +125,29 @@ fun AlphabetRows(
     val rowsToUse = if (isShiftEnabled) language.shiftedRows else language.rows
 
     rowsToUse.forEach { row ->
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            row.forEach { key ->
+                KeyButton(
+                    modifier = Modifier.weight(1f),
+                    key = key,
+                    isShiftEnabled = isShiftEnabled,
+                    onKeyPress = onKeyPress
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SymbolRows(
+    onKeyPress: (Key) -> Unit
+) {
+    symbolKeys.forEach { row ->
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -84,6 +166,7 @@ fun AlphabetRows(
 @Composable
 fun BottomRow(
     languageManager: KeyboardLanguageManager,
+    currentKeyboardLayoutType: KeyboardLayoutType,
     onKeyPress: (Key) -> Unit
 ) {
     Row (
@@ -96,6 +179,7 @@ fun BottomRow(
                     if (key is Key.Space) 4f else 1f
                 ),
                 key = key,
+                currentKeyboardLayoutType = currentKeyboardLayoutType,
                 onKeyPress = {
                     if (it is Key.LanguageToggle) {
                         languageManager.switchToNextLanguage()
@@ -109,35 +193,43 @@ fun BottomRow(
 }
 
 @Composable
-fun KeyButton(
-    modifier: Modifier = Modifier,
-    key: Key,
+fun EmojiBottomRow(
+    currentKeyboardLayoutType: KeyboardLayoutType,
     onKeyPress: (Key) -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .padding(2.dp)
-            .height(48.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.LightGray)
-            .clickable {
-                onKeyPress(key)
-            },
-        contentAlignment = Alignment.Center
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        Text(
-            text = when(key) {
-                is Key.Character -> key.value
-                is Key.Shift -> "⇧"
-                is Key.Delete -> "⌫"
-                is Key.NumberToggle -> "?123"
-                is Key.Enter -> "⏎"
-                is Key.LanguageToggle -> "\uD83C\uDF10"
-                else -> ""
-            },
-            color = Color.DarkGray,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Medium
+        EmojiBottomRowKeys.forEach { key ->
+            KeyButton(
+                modifier = Modifier.weight(
+                    if (key is Key.Space) 4f else 1f
+                ),
+                key = key,
+                currentKeyboardLayoutType = currentKeyboardLayoutType,
+                onKeyPress = onKeyPress
+            )
+        }
+    }
+}
+
+@Composable
+fun EmojiRows(
+    modifier: Modifier = Modifier,
+    onKeyPress: (Key) -> Unit
+) {
+    Column (modifier = modifier) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth()
+                .height(300.dp),
+            factory = { context ->
+                EmojiPickerView(context).apply {
+                    setOnEmojiPickedListener { emoji ->
+                        onKeyPress(Key.Character(emoji.emoji))
+                    }
+                }
+            }
         )
     }
 }

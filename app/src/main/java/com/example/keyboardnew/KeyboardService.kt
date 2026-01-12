@@ -104,7 +104,7 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
 
     private fun handleDelete() {
         val inputConnection = currentInputConnection ?: return
-        inputConnection.deleteSurroundingText(1, 0)
+        inputConnection.deleteSurroundingTextInCodePoints(1, 0)
     }
 
     private fun handleSpace() {

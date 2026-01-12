@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
             KeyboardNewTheme {
                 Surface (
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     var inputValue by remember { mutableStateOf("") }
                     Column (
