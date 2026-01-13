@@ -12,8 +12,10 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ServiceLifecycleDispatcher
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
@@ -21,11 +23,16 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.keyboardnew.emotionDetection.CameraLayout
+import com.example.keyboardnew.emotionDetection.EmotionDetectorViewModel
 import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageManager
 import com.example.keyboardnew.ui.KeyboardLayout
 import com.example.keyboardnew.ui.theme.KeyboardNewTheme
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 
 class KeyboardService: InputMethodService(),
     LifecycleOwner,
@@ -43,6 +50,10 @@ class KeyboardService: InputMethodService(),
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
 
+    private val emotionDetectorViewModel: EmotionDetectorViewModel by lazy {
+        ViewModelProvider(this)[EmotionDetectorViewModel::class]
+    }
+
     private val store = ViewModelStore()
     override val viewModelStore: ViewModelStore
         get() = store
@@ -53,6 +64,8 @@ class KeyboardService: InputMethodService(),
         super.onCreate()
         keyboardLanguageManager = KeyboardLanguageManager(this)
         savedStateRegistryController.performRestore(null)
+
+        updateSuggestions()
     }
 
     @CallSuper
@@ -127,5 +140,16 @@ class KeyboardService: InputMethodService(),
     private fun handleEmojiSuggestionClick(emoji: String) {
         val inputConnection = currentInputConnection ?: return
         inputConnection.commitText(" $emoji", 1)
+    }
+
+    @OptIn(FlowPreview::class)
+    private fun updateSuggestions() {
+        lifecycleScope.launch {
+            emotionDetectorViewModel.detectedEmotion
+                .debounce(2000)
+                .collectLatest { emotion ->
+                    emojiSuggestions = SuggestionsProvider.getEmojiForEmotion(emotion)
+                }
+        }
     }
 }
