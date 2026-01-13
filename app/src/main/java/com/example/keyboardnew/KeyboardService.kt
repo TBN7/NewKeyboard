@@ -12,18 +12,24 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ServiceLifecycleDispatcher
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.keyboardnew.emotionDetection.CameraLayout
 import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageManager
 import com.example.keyboardnew.ui.KeyboardLayout
 import com.example.keyboardnew.ui.theme.KeyboardNewTheme
 
-class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
+class KeyboardService: InputMethodService(),
+    LifecycleOwner,
+    SavedStateRegistryOwner, ViewModelStoreOwner {
 
     private val dispatcher = ServiceLifecycleDispatcher(this)
     override val lifecycle: Lifecycle = dispatcher.lifecycle
@@ -36,6 +42,10 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
     private var emojiSuggestions by mutableStateOf(emptyList<String>())
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
+
+    private val store = ViewModelStore()
+    override val viewModelStore: ViewModelStore
+        get() = store
 
 
     override fun onCreate() {
@@ -62,6 +72,7 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
             setContent {
                 KeyboardNewTheme{
                     Column {
+                        CameraLayout()
                         KeyboardLayout(
                             languageManager = keyboardLanguageManager,
                             emojiSuggestions = SuggestionsProvider.getEmojiForEmotion(Emotion.HAPPY),
@@ -87,6 +98,7 @@ class KeyboardService: InputMethodService(), LifecycleOwner, SavedStateRegistryO
         window?.window?.decorView?.let { decorView ->
             decorView.setViewTreeLifecycleOwner(this)
             decorView.setViewTreeSavedStateRegistryOwner(this)
+            decorView.setViewTreeViewModelStoreOwner(this)
         }
 
         return composeView
