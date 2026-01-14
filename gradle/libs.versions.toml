@@ -19,6 +19,8 @@ mediapipeVision = "0.10.26"
 
 mediapipeGenAI = "0.10.27"
 
+gson = "2.10.1"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +55,8 @@ androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycl
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX"}
 
 google-guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-mesh-detection", version.ref = "faceMesh"}
 mediapie-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipeVision"}

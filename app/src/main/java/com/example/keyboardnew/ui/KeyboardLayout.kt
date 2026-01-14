@@ -2,6 +2,7 @@ package com.example.keyboardnew.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,6 +51,7 @@ fun KeyboardLayout(
     currentInput: String,
     currentEmotion: Emotion,
     emotionAssistViewModel: EmotionAssistViewModel = viewModel(),
+    suggestions: List<String>,
     emojiSuggestions: List<String>,
     isShiftEnabled: Boolean,
     onKeyPress: (Key) -> Unit,
@@ -72,9 +74,10 @@ fun KeyboardLayout(
             .padding(8.dp)
     ) {
         if (currentLayoutType != KeyboardLayoutType.EmotionAssist) {
-            EmojiBar(
+            SuggestionsBar(
+                suggestions = suggestions,
                 emojis = emojiSuggestions,
-                onEmojiClick = onEmojiClick,
+                onSuggestionClick = onEmojiClick,
                 onEmotionAssistClick = {
                     currentLayoutType = KeyboardLayoutType.EmotionAssist
                 }
@@ -268,10 +271,11 @@ fun EmojiRows(
 }
 
 @Composable
-fun EmojiBar(
+fun SuggestionsBar(
     modifier: Modifier = Modifier,
+    suggestions: List<String>,
     emojis: List<String>,
-    onEmojiClick: (String) -> Unit,
+    onSuggestionClick: (String) -> Unit,
     onEmotionAssistClick: () -> Unit
 ) {
     Row (
@@ -283,7 +287,7 @@ fun EmojiBar(
                 modifier = modifier
                     .size(48.dp)
                     .padding(8.dp),
-                onClick = { onEmojiClick(emoji) }
+                onClick = { onSuggestionClick(emoji) }
             ) {
                 Text(
                     text = emoji,
@@ -291,13 +295,31 @@ fun EmojiBar(
                 )
             }
         }
-        IconButton(
-            modifier = modifier
-                .size(48.dp)
-                .padding(8.dp),
-            onClick = onEmotionAssistClick
-        ) {
-            Image(painter = painterResource(R.drawable.magic_wand), "")
+//        IconButton(
+//            modifier = modifier
+//                .size(48.dp)
+//                .padding(8.dp),
+//            onClick = onEmotionAssistClick
+//        ) {
+//            Image(painter = painterResource(R.drawable.magic_wand), "")
+//        }
+        if (suggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly) {
+                suggestions.forEach { suggestion ->
+                    Text(
+                        text = suggestion,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(4.dp)
+                            .clickable {
+                                onSuggestionClick(suggestion)
+                            }
+                    )
+                }
+            }
         }
     }
 }

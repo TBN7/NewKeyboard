@@ -135,8 +135,6 @@ class EmotionDetector {
 
         val maxEmotion = emotionScores.maxByOrNull { it.value }
 
-        Log.d("taaag", emotionScores.toString())
-
         return when {
             maxEmotion == null -> Emotion.NEUTRAL
             maxEmotion.key == Emotion.SAD && maxEmotion.value >= sadnessThreshold -> Emotion.SAD

@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.savedstate.ktx)
     implementation(libs.lifecycle.service)
 
+    implementation(libs.gson)
+
     implementation(libs.emoji.picker)
     implementation(libs.bundles.camerax)
     implementation(libs.bundles.lifecycle)
