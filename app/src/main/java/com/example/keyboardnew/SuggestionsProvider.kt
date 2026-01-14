@@ -9,6 +9,7 @@ object SuggestionsProvider {
         Emotion.SAD to listOf("🙁", "😟", "😢", "😫", "😭"),
         Emotion.SURPRISED to listOf("😯", "😮", "😲", "🤯", "😱"),
         Emotion.ANGRY to listOf("😠", "😡", "🤬", "😤", "👿"),
+        Emotion.NEUTRAL to listOf("😐", "😑", "😶", "😴", "🤔")
     )
 
     fun getEmojiForEmotion(emotion: Emotion): List<String> =

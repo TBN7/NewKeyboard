@@ -47,6 +47,8 @@ class KeyboardService: InputMethodService(),
 
     private var isShiftEnabled by mutableStateOf(false)
     private var emojiSuggestions by mutableStateOf(emptyList<String>())
+    private var currentInput by mutableStateOf("")
+    private var currentEmotion by mutableStateOf(Emotion.NEUTRAL)
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
 
@@ -88,6 +90,8 @@ class KeyboardService: InputMethodService(),
                         CameraLayout()
                         KeyboardLayout(
                             languageManager = keyboardLanguageManager,
+                            currentInput = currentInput,
+                            currentEmotion = currentEmotion,
                             emojiSuggestions = SuggestionsProvider.getEmojiForEmotion(Emotion.HAPPY),
                             isShiftEnabled = isShiftEnabled,
                             onKeyPress = { key ->
@@ -101,6 +105,9 @@ class KeyboardService: InputMethodService(),
                             },
                             onEmojiClick = { emoji ->
                                 handleEmojiSuggestionClick(emoji)
+                            },
+                            onTextApply = { text ->
+                                handleTextApplied(text)
                             }
                         )
                     }
@@ -121,6 +128,8 @@ class KeyboardService: InputMethodService(),
     private fun handleLetterKeyPress(letter: String) {
         val inputConnection = currentInputConnection ?: return
         inputConnection.commitText(letter, 1)
+
+        currentInput += letter
     }
 
     private fun handleShiftPress() {
@@ -130,24 +139,39 @@ class KeyboardService: InputMethodService(),
     private fun handleDelete() {
         val inputConnection = currentInputConnection ?: return
         inputConnection.deleteSurroundingTextInCodePoints(1, 0)
+        if (currentInput.isNotEmpty()) {
+            currentInput = currentInput.dropLast(1)
+        }
     }
 
     private fun handleSpace() {
         val inputConnection = currentInputConnection ?: return
         inputConnection.commitText(" ", 1)
+        currentInput += " "
     }
 
     private fun handleEmojiSuggestionClick(emoji: String) {
         val inputConnection = currentInputConnection ?: return
         inputConnection.commitText(" $emoji", 1)
+        currentInput += " $emoji "
+    }
+
+    private fun handleTextApplied(text: String) {
+        val inputConnection = currentInputConnection ?: return
+        if (currentInput.isNotEmpty()) {
+            inputConnection.deleteSurroundingText(currentInput.length, 0)
+        }
+
+        inputConnection.commitText(text, 1)
+        currentInput = text
     }
 
     @OptIn(FlowPreview::class)
     private fun updateSuggestions() {
         lifecycleScope.launch {
             emotionDetectorViewModel.detectedEmotion
-                .debounce(2000)
                 .collectLatest { emotion ->
+                    currentEmotion = emotion
                     emojiSuggestions = SuggestionsProvider.getEmojiForEmotion(emotion)
                 }
         }

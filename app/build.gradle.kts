@@ -62,6 +62,8 @@ dependencies {
     implementation(libs.mlkit.face.detection)
     implementation(libs.mediapie.vision)
 
+    implementation(libs.mediapipe.genai)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

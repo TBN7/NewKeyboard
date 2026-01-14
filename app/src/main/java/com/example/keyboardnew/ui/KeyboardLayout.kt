@@ -1,5 +1,6 @@
 package com.example.keyboardnew.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,17 +14,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.emoji2.emojipicker.EmojiPickerView
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.keyboardnew.R
+import com.example.keyboardnew.emotionAssist.EmotionAssistViewModel
 import com.example.keyboardnew.model.BottomRowKeys
 import com.example.keyboardnew.model.EmojiBottomRowKeys
+import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageConfig
 import com.example.keyboardnew.model.KeyboardLanguageManager
@@ -33,29 +41,43 @@ sealed class KeyboardLayoutType {
     data object Alphabet : KeyboardLayoutType()
     data object Symbol : KeyboardLayoutType()
     data object Emoji : KeyboardLayoutType()
+    data object EmotionAssist : KeyboardLayoutType()
 }
 
 @Composable
 fun KeyboardLayout(
     languageManager: KeyboardLanguageManager,
+    currentInput: String,
+    currentEmotion: Emotion,
+    emotionAssistViewModel: EmotionAssistViewModel = viewModel(),
     emojiSuggestions: List<String>,
     isShiftEnabled: Boolean,
     onKeyPress: (Key) -> Unit,
-    onEmojiClick: (String) -> Unit
+    onEmojiClick: (String) -> Unit,
+    onTextApply: (String) -> Unit
 ) {
     val currentLanguage = languageManager.currentLanguage
     var currentLayoutType by remember {
         mutableStateOf<KeyboardLayoutType>(KeyboardLayoutType.Alphabet)
     }
+
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        emotionAssistViewModel.initModel(context)
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .padding(8.dp)
     ) {
-        if (emojiSuggestions.isNotEmpty()) {
+        if (currentLayoutType != KeyboardLayoutType.EmotionAssist) {
             EmojiBar(
                 emojis = emojiSuggestions,
-                onEmojiClick = onEmojiClick
+                onEmojiClick = onEmojiClick,
+                onEmotionAssistClick = {
+                    currentLayoutType = KeyboardLayoutType.EmotionAssist
+                }
             )
         }
         when(currentLayoutType) {
@@ -72,6 +94,16 @@ fun KeyboardLayout(
             is KeyboardLayoutType.Symbol ->
                 SymbolRows(
                     onKeyPress = onKeyPress
+                )
+            is KeyboardLayoutType.EmotionAssist ->
+                EmotionAssistLayout(
+                    currentInput = currentInput,
+                    currentEmotion = currentEmotion,
+                    emotionAssistViewModel = emotionAssistViewModel,
+                    onTextApply = onTextApply,
+                    onBackToKeyboardPressed = {
+                        currentLayoutType = KeyboardLayoutType.Alphabet
+                    }
                 )
         }
 
@@ -98,7 +130,7 @@ fun KeyboardLayout(
                         }
                     }
                 )
-            else ->
+            is KeyboardLayoutType.Emoji ->
                 EmojiBottomRow(
                     currentKeyboardLayoutType = currentLayoutType,
                     onKeyPress = { key ->
@@ -112,6 +144,7 @@ fun KeyboardLayout(
                         }
                     }
                 )
+            else -> { /* No bottom row for Emotion Assist */}
         }
     }
 }
@@ -238,7 +271,8 @@ fun EmojiRows(
 fun EmojiBar(
     modifier: Modifier = Modifier,
     emojis: List<String>,
-    onEmojiClick: (String) -> Unit
+    onEmojiClick: (String) -> Unit,
+    onEmotionAssistClick: () -> Unit
 ) {
     Row (
         modifier = Modifier.fillMaxWidth(),
@@ -256,6 +290,14 @@ fun EmojiBar(
                     fontSize = 28.sp
                 )
             }
+        }
+        IconButton(
+            modifier = modifier
+                .size(48.dp)
+                .padding(8.dp),
+            onClick = onEmotionAssistClick
+        ) {
+            Image(painter = painterResource(R.drawable.magic_wand), "")
         }
     }
 }
