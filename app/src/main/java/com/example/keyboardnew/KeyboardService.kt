@@ -22,14 +22,19 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.keyboardnew.emotionAssist.LlmViewModel
 import com.example.keyboardnew.emotionDetection.CameraLayout
 import com.example.keyboardnew.emotionDetection.EmotionDetectorViewModel
 import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageManager
+import com.example.keyboardnew.model.ReplyOptionsResult
+import com.example.keyboardnew.model.replySuggestionPrompt
+import com.example.keyboardnew.replySuggestions.ReplyOptionsRepository
 import com.example.keyboardnew.suggestions.SuggestionsProvider
 import com.example.keyboardnew.ui.KeyboardLayout
 import com.example.keyboardnew.ui.theme.KeyboardNewTheme
+import com.google.gson.Gson
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -58,10 +63,16 @@ class KeyboardService: InputMethodService(),
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
     private lateinit var suggestionsProvider: SuggestionsProvider
+    private lateinit var replyOptionsRepository: ReplyOptionsRepository
 
     private val emotionDetectorViewModel: EmotionDetectorViewModel by lazy {
         ViewModelProvider(this)[EmotionDetectorViewModel::class]
     }
+
+    private val llmViewModel: LlmViewModel by lazy {
+        ViewModelProvider(this)[LlmViewModel::class]
+    }
+
 
     private val store = ViewModelStore()
     override val viewModelStore: ViewModelStore
@@ -81,6 +92,38 @@ class KeyboardService: InputMethodService(),
 
         updateCurrentEmotion()
         setupInputDebounce()
+
+        llmViewModel.initModel(applicationContext)
+
+        replyOptionsRepository = ReplyOptionsRepository(applicationContext)
+        replyOptionsRepository.startListening()
+
+        lifecycleScope.launch {
+            replyOptionsRepository.messagesWithEmotion.collect { messagesWithEmotion ->
+                if (messagesWithEmotion != null) {
+                    llmViewModel.generateResponse(
+                        replySuggestionPrompt
+                            .replace(
+                                "{{MESSAGES}}", messagesWithEmotion.messages.joinToString("\n")
+                            )
+                            .replace("{{NEW_MESSAGE}}", messagesWithEmotion.messages.last())
+                    )
+
+                    currentEmotion = messagesWithEmotion.emotion
+                    updateEmojiSuggestions()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            llmViewModel.response.collect { llmResponse ->
+                if (llmResponse.isEmpty()) {
+                    return@collect
+                }
+                val replyOptionResult = Gson().fromJson(llmResponse, ReplyOptionsResult::class.java)
+                inputSuggestions = replyOptionResult.suggestions
+            }
+        }
     }
 
     @CallSuper
@@ -100,7 +143,7 @@ class KeyboardService: InputMethodService(),
             setContent {
                 KeyboardNewTheme{
                     Column {
-                        CameraLayout()
+//                        CameraLayout()
                         KeyboardLayout(
                             languageManager = keyboardLanguageManager,
                             currentInput = currentInput,

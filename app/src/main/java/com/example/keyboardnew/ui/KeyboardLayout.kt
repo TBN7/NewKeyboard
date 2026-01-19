@@ -1,16 +1,22 @@
 package com.example.keyboardnew.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,16 +26,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.emoji2.emojipicker.EmojiPickerView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.keyboardnew.R
-import com.example.keyboardnew.emotionAssist.EmotionAssistViewModel
+import com.example.keyboardnew.emotionAssist.LlmViewModel
 import com.example.keyboardnew.model.BottomRowKeys
 import com.example.keyboardnew.model.EmojiBottomRowKeys
 import com.example.keyboardnew.model.Emotion
@@ -50,7 +56,7 @@ fun KeyboardLayout(
     languageManager: KeyboardLanguageManager,
     currentInput: String,
     currentEmotion: Emotion,
-    emotionAssistViewModel: EmotionAssistViewModel = viewModel(),
+    llmViewModel: LlmViewModel = viewModel(),
     suggestions: List<String>,
     emojiSuggestions: List<String>,
     isShiftEnabled: Boolean,
@@ -64,9 +70,6 @@ fun KeyboardLayout(
     }
 
     val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        emotionAssistViewModel.initModel(context)
-    }
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -102,7 +105,7 @@ fun KeyboardLayout(
                 EmotionAssistLayout(
                     currentInput = currentInput,
                     currentEmotion = currentEmotion,
-                    emotionAssistViewModel = emotionAssistViewModel,
+                    llmViewModel = llmViewModel,
                     onTextApply = onTextApply,
                     onBackToKeyboardPressed = {
                         currentLayoutType = KeyboardLayoutType.Alphabet
@@ -306,18 +309,36 @@ fun SuggestionsBar(
         if (suggestions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly) {
+                horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.CenterHorizontally) ) {
                 suggestions.forEach { suggestion ->
-                    Text(
-                        text = suggestion,
-                        fontSize = 18.sp,
-                        modifier = Modifier.padding(4.dp)
-                            .clickable {
-                                onSuggestionClick(suggestion)
-                            }
-                    )
+                    Card(
+                        modifier = modifier
+                            .padding(2.dp)
+                            .height(36.dp)
+                            .heightIn(76.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        onClick = {
+                            onSuggestionClick(suggestion)
+                        }
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = suggestion,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

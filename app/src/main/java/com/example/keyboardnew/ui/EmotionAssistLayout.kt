@@ -34,7 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.keyboardnew.emotionAssist.EmotionAssistViewModel
+import com.example.keyboardnew.emotionAssist.LlmViewModel
 import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Tone
 import com.example.keyboardnew.model.promptFor
@@ -44,15 +44,15 @@ fun EmotionAssistLayout(
     modifier: Modifier = Modifier,
     currentInput: String,
     currentEmotion: Emotion,
-    emotionAssistViewModel: EmotionAssistViewModel,
+    llmViewModel: LlmViewModel,
     onTextApply: (String) -> Unit,
     onBackToKeyboardPressed: () -> Unit
 ) {
     var selectedTone by remember { mutableStateOf<Tone?>(null) }
     var loadingMessage by remember { mutableStateOf("") }
 
-    val isLoading by emotionAssistViewModel.isLoading.collectAsState()
-    val response by emotionAssistViewModel.response.collectAsState()
+    val isLoading by llmViewModel.isLoading.collectAsState()
+    val response by llmViewModel.response.collectAsState()
 
     LaunchedEffect(selectedTone) {
         if (selectedTone != null) {
@@ -82,7 +82,7 @@ fun EmotionAssistLayout(
                     .replace("{emotion}", currentEmotion.name)
                     .replace("{allow_emojis}", "true")
 
-                emotionAssistViewModel.generateResponse(prompt)
+                llmViewModel.generateResponse(prompt)
             }
         )
 

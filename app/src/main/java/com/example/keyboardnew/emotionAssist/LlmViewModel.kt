@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class EmotionAssistViewModel : ViewModel() {
+class LlmViewModel : ViewModel() {
 
     private var llmInference: LlmInference? = null
 
@@ -64,14 +64,31 @@ class EmotionAssistViewModel : ViewModel() {
     fun generateResponse(
         prompt: String
     ) {
+        Log.d("taaag", prompt)
         _isLoading.value = true
         viewModelScope.launch(Dispatchers.IO) {
             val result = llmInference?.generateResponse(prompt)
             if (result != null) {
-                _response.value = result
+                _response.value = result.cleanLlmJsonResponse()
             }
 
             _isLoading.value = false
         }
     }
+}
+
+fun String.cleanLlmJsonResponse(): String {
+    var cleaned = trim()
+
+    if (cleaned.startsWith("```")) {
+        cleaned = cleaned.removePrefix("```json")
+    }
+    if (cleaned.startsWith("```")) {
+        cleaned = cleaned.removePrefix("```")
+    }
+    if (cleaned.endsWith("```")) {
+        cleaned = cleaned.removeSuffix("```")
+    }
+
+    return cleaned
 }
