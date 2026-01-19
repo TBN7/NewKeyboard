@@ -23,18 +23,19 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.keyboardnew.emotionAssist.LlmViewModel
-import com.example.keyboardnew.emotionDetection.CameraLayout
 import com.example.keyboardnew.emotionDetection.EmotionDetectorViewModel
 import com.example.keyboardnew.model.Emotion
 import com.example.keyboardnew.model.Key
 import com.example.keyboardnew.model.KeyboardLanguageManager
 import com.example.keyboardnew.model.ReplyOptionsResult
+import com.example.keyboardnew.model.autocompleteSuggestionPrompt
 import com.example.keyboardnew.model.replySuggestionPrompt
 import com.example.keyboardnew.replySuggestions.ReplyOptionsRepository
 import com.example.keyboardnew.suggestions.SuggestionsProvider
 import com.example.keyboardnew.ui.KeyboardLayout
 import com.example.keyboardnew.ui.theme.KeyboardNewTheme
 import com.google.gson.Gson
+import com.example.keyboardnew.replySuggestions.MessagesWithEmotion
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -58,6 +59,8 @@ class KeyboardService: InputMethodService(),
     private var inputSuggestions by mutableStateOf(emptyList<String>())
     private var currentInput by mutableStateOf("")
     private var currentEmotion by mutableStateOf(Emotion.NEUTRAL)
+
+    private var lastMessagesWithEmotion by mutableStateOf<MessagesWithEmotion?>(null)
 
     private val _currentInput = MutableStateFlow("")
 
@@ -101,6 +104,7 @@ class KeyboardService: InputMethodService(),
         lifecycleScope.launch {
             replyOptionsRepository.messagesWithEmotion.collect { messagesWithEmotion ->
                 if (messagesWithEmotion != null) {
+                    lastMessagesWithEmotion = messagesWithEmotion
                     llmViewModel.generateResponse(
                         replySuggestionPrompt
                             .replace(
@@ -223,6 +227,17 @@ class KeyboardService: InputMethodService(),
         _currentInput.value = currentInput
 
         updateInputSuggestions()
+
+        if (lastMessagesWithEmotion != null) {
+            llmViewModel.generateResponse(
+                autocompleteSuggestionPrompt
+                    .replace(
+                        "{{MESSAGES}}", lastMessagesWithEmotion!!.messages.joinToString("\n")
+                    )
+                    .replace("{{NEW_MESSAGE}}", lastMessagesWithEmotion!!.messages.last())
+                    .replace("{{PARTIAL_INPUT}}", currentInput)
+            )
+        }
     }
 
     private fun handleSuggestionClick(suggestion: String) {

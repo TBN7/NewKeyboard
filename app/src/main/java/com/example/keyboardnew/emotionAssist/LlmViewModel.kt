@@ -6,15 +6,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
 
 class LlmViewModel : ViewModel() {
 
     private var llmInference: LlmInference? = null
+    private var inferenceJob: Job? = null
+
+    private var activeInference = AtomicReference<Job?>(null)
 
     private val _response = MutableStateFlow("")
     val response: StateFlow<String> = _response
@@ -34,8 +40,9 @@ class LlmViewModel : ViewModel() {
 
             val options = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(path)
-                .setMaxTokens(1024)
-                .setMaxTopK(64)
+                .setMaxTokens(512)
+                .setMaxTopK(32)
+//                .setPreferredBackend(LlmInference.Backend.GPU)
                 .build()
 
             llmInference = LlmInference.createFromOptions(context, options)
@@ -66,14 +73,33 @@ class LlmViewModel : ViewModel() {
     ) {
         Log.d("taaag", prompt)
         _isLoading.value = true
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = llmInference?.generateResponse(prompt)
-            if (result != null) {
-                _response.value = result.cleanLlmJsonResponse()
-            }
+        val previousJob = activeInference.getAndSet(null)
+//        previousJob?.cancel()
 
-            _isLoading.value = false
+        val newJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d("taaag", "Inside new job ${previousJob?.isCancelled}")
+                val result = llmInference?.generateResponse(prompt)
+                Log.d("taaag", result.toString())
+                if (result != null && isActive) {
+                    _response.value = result.cleanLlmJsonResponse()
+                }
+            } finally {
+                if (isActive) {
+                    _isLoading.value = false
+                }
+            }
         }
+
+        activeInference.set(newJob)
+    }
+
+
+    override fun onCleared() {
+        super.onCleared()
+        inferenceJob?.cancel()
+        llmInference?.close()
+
     }
 }
 

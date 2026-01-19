@@ -17,7 +17,7 @@ guava = "27.1-android"
 faceMesh = "16.0.0-beta3"
 mediapipeVision = "0.10.26"
 
-mediapipeGenAI = "0.10.27"
+mediapipeGenAI = "0.10.29"
 
 gson = "2.10.1"
 
