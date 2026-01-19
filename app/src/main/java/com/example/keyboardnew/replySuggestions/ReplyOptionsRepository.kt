@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 private const val ACTION_MESSAGE_RECEIVED = "kz.project.minimessenger.MESSAGE_RECEIVED"
 
+private const val ACTION_EMOTION_RECEIVED = "kz.project.minimessenger.EMOTION_RECEIVED"
+
 /**
  * messages: [
  *  "INCOMING: Hello"
@@ -29,6 +31,9 @@ class ReplyOptionsRepository(
     private val _messagesWithEmotion = MutableStateFlow<MessagesWithEmotion?>(null)
     val messagesWithEmotion: StateFlow<MessagesWithEmotion?> = _messagesWithEmotion
 
+    private val _emotion = MutableStateFlow<Emotion?>(null)
+    val emotion: StateFlow<Emotion?> = _emotion
+
     private var broadcastReceiver: BroadcastReceiver? = null
 
     fun startListening() {
@@ -44,10 +49,17 @@ class ReplyOptionsRepository(
                         emotion = Emotion.valueOf(intent.getStringExtra("emotion") ?: Emotion.NEUTRAL.name)
                     )
                 }
+                if (intent.action == ACTION_EMOTION_RECEIVED) {
+                    _emotion.value = Emotion.valueOf(intent.getStringExtra("emotion")
+                        ?: Emotion.NEUTRAL.name)
+                }
             }
         }
 
-        val intentFilter = IntentFilter(ACTION_MESSAGE_RECEIVED)
+        val intentFilter = IntentFilter().apply {
+            addAction(ACTION_MESSAGE_RECEIVED)
+            addAction(ACTION_EMOTION_RECEIVED)
+        }
         ContextCompat.registerReceiver(
             context,
             broadcastReceiver,

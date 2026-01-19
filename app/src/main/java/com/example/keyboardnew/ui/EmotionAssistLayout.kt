@@ -82,7 +82,7 @@ fun EmotionAssistLayout(
                     .replace("{emotion}", currentEmotion.name)
                     .replace("{allow_emojis}", "true")
 
-                llmViewModel.generateResponse(prompt)
+                llmViewModel.generateResponseAsync(prompt)
             }
         )
 

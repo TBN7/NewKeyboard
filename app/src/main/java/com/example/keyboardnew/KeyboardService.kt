@@ -1,14 +1,22 @@
 package com.example.keyboardnew
 
 import android.inputmethodservice.InputMethodService
+import android.util.Log
 import android.view.View
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.annotation.CallSuper
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ServiceLifecycleDispatcher
@@ -105,13 +113,17 @@ class KeyboardService: InputMethodService(),
             replyOptionsRepository.messagesWithEmotion.collect { messagesWithEmotion ->
                 if (messagesWithEmotion != null) {
                     lastMessagesWithEmotion = messagesWithEmotion
-                    llmViewModel.generateResponse(
-                        replySuggestionPrompt
-                            .replace(
-                                "{{MESSAGES}}", messagesWithEmotion.messages.joinToString("\n")
-                            )
-                            .replace("{{NEW_MESSAGE}}", messagesWithEmotion.messages.last())
-                    )
+                    if (messagesWithEmotion.messages.size > 5) {
+                        inputSuggestions = emptyList()
+                        llmViewModel.generateResponse(
+                            replySuggestionPrompt
+                                .replace(
+                                    "{{MESSAGES}}", messagesWithEmotion.messages
+                                        .takeLast(5)
+                                        .joinToString("\n")
+                                )
+                        )
+                    }
 
                     currentEmotion = messagesWithEmotion.emotion
                     updateEmojiSuggestions()
@@ -120,12 +132,29 @@ class KeyboardService: InputMethodService(),
         }
 
         lifecycleScope.launch {
+            replyOptionsRepository.emotion.collect { emotion ->
+                Log.d("taaag", emotion.toString())
+                if (emotion != null) {
+                    currentEmotion = emotion
+                    updateEmojiSuggestions()
+                }
+            }
+        }
+
+        lifecycleScope.launch {
             llmViewModel.response.collect { llmResponse ->
+                Log.d("taaag", llmResponse)
                 if (llmResponse.isEmpty()) {
                     return@collect
                 }
                 val replyOptionResult = Gson().fromJson(llmResponse, ReplyOptionsResult::class.java)
-                inputSuggestions = replyOptionResult.suggestions
+                inputSuggestions = listOf(llmResponse)
+            }
+        }
+
+        lifecycleScope.launch {
+            llmViewModel.benchmarks.collect { benchmarkData ->
+                Log.d("taaag", benchmarkData.toString())
             }
         }
     }
@@ -146,7 +175,9 @@ class KeyboardService: InputMethodService(),
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setContent {
                 KeyboardNewTheme{
-                    Column {
+                    Column(modifier = Modifier
+                        .windowInsetsPadding(WindowInsets.navigationBars.add(WindowInsets(bottom = 16.dp)))
+                    ) {
 //                        CameraLayout()
                         KeyboardLayout(
                             languageManager = keyboardLanguageManager,
@@ -228,16 +259,16 @@ class KeyboardService: InputMethodService(),
 
         updateInputSuggestions()
 
-        if (lastMessagesWithEmotion != null) {
-            llmViewModel.generateResponse(
-                autocompleteSuggestionPrompt
-                    .replace(
-                        "{{MESSAGES}}", lastMessagesWithEmotion!!.messages.joinToString("\n")
-                    )
-                    .replace("{{NEW_MESSAGE}}", lastMessagesWithEmotion!!.messages.last())
-                    .replace("{{PARTIAL_INPUT}}", currentInput)
-            )
-        }
+//        if (lastMessagesWithEmotion != null) {
+//            llmViewModel.generateResponse(
+//                autocompleteSuggestionPrompt
+//                    .replace(
+//                        "{{MESSAGES}}", lastMessagesWithEmotion!!.messages.joinToString("\n")
+//                    )
+//                    .replace("{{NEW_MESSAGE}}", lastMessagesWithEmotion!!.messages.last())
+//                    .replace("{{PARTIAL_INPUT}}", currentInput)
+//            )
+//        }
     }
 
     private fun handleSuggestionClick(suggestion: String) {

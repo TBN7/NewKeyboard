@@ -28,15 +28,8 @@ private const val SYSTEM_PROMPT = """
 """
 
 val replySuggestionPrompt = """
-    $SYSTEM_PROMPT
-    
-    CONVERSATION (most recent messages 10 at most):
+    Generate 1 short reply (2-15 words) for this chat. Conversation:
     {{MESSAGES}}
-    
-    NEW MESSAGE:
-    {{NEW_MESSAGE}}
-    
-    Generate 3 reply suggestions as JSON
 """.trimIndent()
 
 
@@ -86,5 +79,6 @@ val autocompleteSuggestionPrompt = """
     USER'S PARTIAL INPUT:
     {{PARTIAL_INPUT}}
     
-    Generate ONLY 1 (ONE) completion suggestions as JSON. If PARTIAL_INPUT is empty or less than 3 characters, provide full reply suggestions instead of completions.
+    Generate ONLY 1 (ONE) completion suggestions as JSON.
+    If PARTIAL_INPUT is empty or less than 3 characters, provide full reply suggestions instead of completions.
     """.trimIndent()
