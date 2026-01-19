@@ -69,6 +69,7 @@ class KeyboardService: InputMethodService(),
     private var currentEmotion by mutableStateOf(Emotion.NEUTRAL)
 
     private val _currentInput = MutableStateFlow("")
+    private val cachedReplyOptions = mutableListOf<String>()
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
     private lateinit var suggestionsProvider: SuggestionsProvider
@@ -113,12 +114,13 @@ class KeyboardService: InputMethodService(),
         lifecycleScope.launch {
             replyOptionsRepository.replyOptions.collect { suggestions ->
                 replyOptions = suggestions
+                cachedReplyOptions.clear()
+                cachedReplyOptions.addAll(replyOptions)
             }
         }
 
         lifecycleScope.launch {
             replyOptionsRepository.emotion.collect { emotion ->
-                Log.d("taaag", emotion.toString())
                 if (emotion != null) {
                     currentEmotion = emotion
                     updateEmojiSuggestions()
@@ -147,6 +149,27 @@ class KeyboardService: InputMethodService(),
     override fun onDestroy() {
         dispatcher.onServicePreSuperOnDestroy()
         super.onDestroy()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+
+        currentInput = ""
+        _currentInput.value = ""
+        inputSuggestions = emptyList()
+        isShiftEnabled = false
+        replyOptions = cachedReplyOptions
+    }
+
+    override fun onFinishInput() {
+        super.onFinishInput()
+
+        currentInput = ""
+        _currentInput.value = ""
+        inputSuggestions = emptyList()
+        replyOptions = emptyList()
+        cachedReplyOptions.clear()
+        isShiftEnabled = false
     }
 
     override fun onCreateInputView(): View {
@@ -250,9 +273,17 @@ class KeyboardService: InputMethodService(),
     private fun handleDelete() {
         val inputConnection = currentInputConnection ?: return
         inputConnection.deleteSurroundingTextInCodePoints(1, 0)
+
+        Log.d("taaag", currentInput.toString())
+
         if (currentInput.isNotEmpty()) {
             currentInput = currentInput.dropLast(1)
             _currentInput.value = currentInput
+        }
+
+        if (currentInput.isEmpty()) {
+            inputSuggestions = emptyList()
+            replyOptions = cachedReplyOptions
         }
     }
 
