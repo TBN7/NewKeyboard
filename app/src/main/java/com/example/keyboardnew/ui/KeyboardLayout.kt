@@ -60,7 +60,10 @@ fun KeyboardLayout(
     suggestions: List<String>,
     emojiSuggestions: List<String>,
     isShiftEnabled: Boolean,
+    replyOptions: List<String>,
     onKeyPress: (Key) -> Unit,
+    onSuggestionClick: (String) -> Unit,
+    onReplyOptionClick: (String) -> Unit,
     onEmojiClick: (String) -> Unit,
     onTextApply: (String) -> Unit
 ) {
@@ -79,8 +82,11 @@ fun KeyboardLayout(
         if (currentLayoutType != KeyboardLayoutType.EmotionAssist) {
             SuggestionsBar(
                 suggestions = suggestions,
+                replyOptions = replyOptions,
                 emojis = emojiSuggestions,
-                onSuggestionClick = onEmojiClick,
+                onEmojiClick = onEmojiClick,
+                onSuggestionClick = onSuggestionClick,
+                onReplyOptionClick = onReplyOptionClick,
                 onEmotionAssistClick = {
                     currentLayoutType = KeyboardLayoutType.EmotionAssist
                 }
@@ -277,8 +283,11 @@ fun EmojiRows(
 fun SuggestionsBar(
     modifier: Modifier = Modifier,
     suggestions: List<String>,
+    replyOptions: List<String>,
     emojis: List<String>,
+    onEmojiClick: (String) -> Unit,
     onSuggestionClick: (String) -> Unit,
+    onReplyOptionClick: (String) -> Unit,
     onEmotionAssistClick: () -> Unit
 ) {
     Row (
@@ -290,7 +299,7 @@ fun SuggestionsBar(
                 modifier = modifier
                     .size(48.dp)
                     .padding(8.dp),
-                onClick = { onSuggestionClick(emoji) }
+                onClick = { onEmojiClick(emoji) }
             ) {
                 Text(
                     text = emoji,
@@ -309,10 +318,29 @@ fun SuggestionsBar(
         if (suggestions.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                suggestions.forEach { suggestion ->
+                    Text(
+                        text = suggestion,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(4.dp)
+                            .clickable {
+                                onSuggestionClick(suggestion)
+                            }
+                    )
+                }
+            }
+        } else if (replyOptions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+
+
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.CenterHorizontally) ) {
-                suggestions.forEach { suggestion ->
+                replyOptions.forEach { replyOption ->
                     Card(
                         modifier = modifier
                             .padding(2.dp)
@@ -324,7 +352,7 @@ fun SuggestionsBar(
                             containerColor = MaterialTheme.colorScheme.surface
                         ),
                         onClick = {
-                            onSuggestionClick(suggestion)
+                            onReplyOptionClick(replyOption)
                         }
                     ) {
                         Box(
@@ -332,7 +360,7 @@ fun SuggestionsBar(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = suggestion,
+                                text = replyOption,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

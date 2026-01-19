@@ -38,12 +38,11 @@ import com.example.keyboardnew.model.KeyboardLanguageManager
 import com.example.keyboardnew.model.ReplyOptionsResult
 import com.example.keyboardnew.model.autocompleteSuggestionPrompt
 import com.example.keyboardnew.model.replySuggestionPrompt
+import com.example.keyboardnew.replySuggestions.KeyboardEventRepository
 import com.example.keyboardnew.replySuggestions.ReplyOptionsRepository
 import com.example.keyboardnew.suggestions.SuggestionsProvider
 import com.example.keyboardnew.ui.KeyboardLayout
 import com.example.keyboardnew.ui.theme.KeyboardNewTheme
-import com.google.gson.Gson
-import com.example.keyboardnew.replySuggestions.MessagesWithEmotion
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -64,17 +63,17 @@ class KeyboardService: InputMethodService(),
 
     private var isShiftEnabled by mutableStateOf(false)
     private var emojiSuggestions by mutableStateOf(emptyList<String>())
+    private var replyOptions by mutableStateOf(emptyList<String>())
     private var inputSuggestions by mutableStateOf(emptyList<String>())
     private var currentInput by mutableStateOf("")
     private var currentEmotion by mutableStateOf(Emotion.NEUTRAL)
-
-    private var lastMessagesWithEmotion by mutableStateOf<MessagesWithEmotion?>(null)
 
     private val _currentInput = MutableStateFlow("")
 
     private lateinit var keyboardLanguageManager: KeyboardLanguageManager
     private lateinit var suggestionsProvider: SuggestionsProvider
     private lateinit var replyOptionsRepository: ReplyOptionsRepository
+    private lateinit var keyboardEventRepository: KeyboardEventRepository
 
     private val emotionDetectorViewModel: EmotionDetectorViewModel by lazy {
         ViewModelProvider(this)[EmotionDetectorViewModel::class]
@@ -104,30 +103,16 @@ class KeyboardService: InputMethodService(),
         updateCurrentEmotion()
         setupInputDebounce()
 
-        llmViewModel.initModel(applicationContext)
+        //llmViewModel.initModel(applicationContext)
 
         replyOptionsRepository = ReplyOptionsRepository(applicationContext)
         replyOptionsRepository.startListening()
 
-        lifecycleScope.launch {
-            replyOptionsRepository.messagesWithEmotion.collect { messagesWithEmotion ->
-                if (messagesWithEmotion != null) {
-                    lastMessagesWithEmotion = messagesWithEmotion
-                    if (messagesWithEmotion.messages.size > 5) {
-                        inputSuggestions = emptyList()
-                        llmViewModel.generateResponse(
-                            replySuggestionPrompt
-                                .replace(
-                                    "{{MESSAGES}}", messagesWithEmotion.messages
-                                        .takeLast(5)
-                                        .joinToString("\n")
-                                )
-                        )
-                    }
+        keyboardEventRepository = KeyboardEventRepository(applicationContext)
 
-                    currentEmotion = messagesWithEmotion.emotion
-                    updateEmojiSuggestions()
-                }
+        lifecycleScope.launch {
+            replyOptionsRepository.replyOptions.collect { suggestions ->
+                replyOptions = suggestions
             }
         }
 
@@ -141,22 +126,16 @@ class KeyboardService: InputMethodService(),
             }
         }
 
-        lifecycleScope.launch {
-            llmViewModel.response.collect { llmResponse ->
-                Log.d("taaag", llmResponse)
-                if (llmResponse.isEmpty()) {
-                    return@collect
-                }
-                val replyOptionResult = Gson().fromJson(llmResponse, ReplyOptionsResult::class.java)
-                inputSuggestions = listOf(llmResponse)
-            }
-        }
-
-        lifecycleScope.launch {
-            llmViewModel.benchmarks.collect { benchmarkData ->
-                Log.d("taaag", benchmarkData.toString())
-            }
-        }
+//        lifecycleScope.launch {
+//            llmViewModel.response.collect { llmResponse ->
+//                Log.d("taaag", llmResponse)
+//                if (llmResponse.isEmpty()) {
+//                    return@collect
+//                }
+//                val replyOptionResult = Gson().fromJson(llmResponse, ReplyOptionsResult::class.java)
+//                inputSuggestions = listOf(llmResponse)
+//            }
+//        }
     }
 
     @CallSuper
@@ -184,22 +163,44 @@ class KeyboardService: InputMethodService(),
                             currentInput = currentInput,
                             currentEmotion = currentEmotion,
                             suggestions = inputSuggestions,
+                            replyOptions = replyOptions,
                             emojiSuggestions = emojiSuggestions,
                             isShiftEnabled = isShiftEnabled,
                             onKeyPress = { key ->
                                 when(key) {
-                                    is Key.Character -> handleLetterKeyPress(key.value)
-                                    Key.Shift -> handleShiftPress()
-                                    Key.Space -> handleSpace()
-                                    Key.Delete -> handleDelete()
+                                    is Key.Character -> {
+                                        keyboardEventRepository.sendKeyPress(key.value)
+                                        handleLetterKeyPress(key.value)
+                                    }
+                                    Key.Shift -> {
+                                        keyboardEventRepository.sendKeyPress("SHIFT")
+                                        handleShiftPress()
+                                    }
+                                    Key.Delete -> {
+                                        keyboardEventRepository.sendBackspacePress()
+                                        handleDelete()
+                                    }
+                                    Key.Space -> {
+                                        keyboardEventRepository.sendKeyPress("SPACE")
+                                        handleSpace()
+                                    }
                                     else -> { }
                                 }
                             },
                             onEmojiClick = { emoji ->
+                                keyboardEventRepository.sentEmojiSuggestionClick(emoji)
                                 handleSuggestionClick(emoji)
                             },
                             onTextApply = { text ->
                                 handleTextApplied(text)
+                            },
+                            onSuggestionClick = { suggestion ->
+                                keyboardEventRepository.sentWordSuggestionClick(suggestion)
+                                handleSuggestionClick(suggestion)
+                            },
+                            onReplyOptionClick = { replyOption ->
+                                keyboardEventRepository.sentReplyOptionClick(replyOption)
+                                handleSuggestionClick(replyOption)
                             }
                         )
                     }
@@ -236,6 +237,10 @@ class KeyboardService: InputMethodService(),
 
         currentInput += letter
         _currentInput.value = currentInput
+
+        if (replyOptions.isNotEmpty()) {
+            replyOptions = emptyList()
+        }
     }
 
     private fun handleShiftPress() {

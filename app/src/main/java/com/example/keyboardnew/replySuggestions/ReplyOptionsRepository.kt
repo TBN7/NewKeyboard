@@ -10,26 +10,15 @@ import com.example.keyboardnew.model.Emotion
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-private const val ACTION_MESSAGE_RECEIVED = "kz.project.minimessenger.MESSAGE_RECEIVED"
 
+private const val ACTION_SEND_REPLY_OPTIONS = "kz.project.minimessenger.SEND_REPLY_OPTIONS"
 private const val ACTION_EMOTION_RECEIVED = "kz.project.minimessenger.EMOTION_RECEIVED"
-
-/**
- * messages: [
- *  "INCOMING: Hello"
- *  "OUTGOING: Hi!"
- * ]
- */
-data class MessagesWithEmotion(
-    val messages: List<String> = emptyList(),
-    val emotion: Emotion = Emotion.NEUTRAL
-)
 
 class ReplyOptionsRepository(
     private val context: Context
 ) {
-    private val _messagesWithEmotion = MutableStateFlow<MessagesWithEmotion?>(null)
-    val messagesWithEmotion: StateFlow<MessagesWithEmotion?> = _messagesWithEmotion
+    private val _replyOptions = MutableStateFlow<List<String>>(emptyList())
+    val replyOptions: StateFlow<List<String>> = _replyOptions
 
     private val _emotion = MutableStateFlow<Emotion?>(null)
     val emotion: StateFlow<Emotion?> = _emotion
@@ -43,11 +32,8 @@ class ReplyOptionsRepository(
 
         broadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == ACTION_MESSAGE_RECEIVED) {
-                    _messagesWithEmotion.value = MessagesWithEmotion(
-                        messages = intent.getStringArrayListExtra("messages") ?: emptyList(),
-                        emotion = Emotion.valueOf(intent.getStringExtra("emotion") ?: Emotion.NEUTRAL.name)
-                    )
+                if (intent.action == ACTION_SEND_REPLY_OPTIONS) {
+                    _replyOptions.value = intent.getStringArrayListExtra("replyOptions") ?: emptyList()
                 }
                 if (intent.action == ACTION_EMOTION_RECEIVED) {
                     _emotion.value = Emotion.valueOf(intent.getStringExtra("emotion")
@@ -57,7 +43,7 @@ class ReplyOptionsRepository(
         }
 
         val intentFilter = IntentFilter().apply {
-            addAction(ACTION_MESSAGE_RECEIVED)
+            addAction(ACTION_SEND_REPLY_OPTIONS)
             addAction(ACTION_EMOTION_RECEIVED)
         }
         ContextCompat.registerReceiver(
